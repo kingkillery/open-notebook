@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, Download, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, Download, Users, Sparkles, ChevronDown } from 'lucide-react'
 
 import { AppShell } from '@/components/layout/AppShell'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -22,11 +22,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import {
   useNotebookLMStatus,
   useNotebookLMNotebooks,
   useImportNotebookLM,
+  useGenerateStudioArtifact,
 } from '@/lib/hooks/use-notebooklm'
 import type { NotebookLMRemoteNotebook } from '@/lib/types/api'
 
@@ -43,6 +50,19 @@ export default function NotebookLMPage() {
   const profileFilter = selected === ALL ? undefined : selected
   const notebooks = useNotebookLMNotebooks(connected, profileFilter)
   const importMutation = useImportNotebookLM()
+  const generateMutation = useGenerateStudioArtifact()
+
+  const handleGenerate = (
+    nb: NotebookLMRemoteNotebook,
+    artifactType: 'report' | 'audio'
+  ) => {
+    generateMutation.mutate({
+      remote_notebook_id: nb.id,
+      artifact_type: artifactType,
+      profile: nb.profile,
+      title: `${nb.title} (${artifactType})`,
+    })
+  }
 
   const [importSources, setImportSources] = useState(true)
   const [importNotes, setImportNotes] = useState(true)
@@ -241,6 +261,31 @@ export default function NotebookLMPage() {
                           ? t('notebooklm.importing')
                           : t('notebooklm.import')}
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={generateMutation.isPending}
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            {t('notebooklm.generate')}
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem
+                            onClick={() => handleGenerate(nb, 'report')}
+                          >
+                            {t('notebooklm.generateReport')}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleGenerate(nb, 'audio')}
+                          >
+                            {t('notebooklm.generateAudio')}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       {nb.url && (
                         <Button asChild size="sm" variant="ghost">
                           <a href={nb.url} target="_blank" rel="noreferrer">

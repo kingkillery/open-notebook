@@ -799,3 +799,43 @@ class NotebookLMQueryResponse(BaseModel):
     conversation_id: Optional[str] = Field(
         default=None, description="Conversation id for follow-ups"
     )
+
+
+class NotebookLMStudioArtifact(BaseModel):
+    artifact_id: Optional[str] = Field(default=None, description="Artifact id")
+    title: Optional[str] = Field(default=None, description="Artifact title")
+    type: Optional[str] = Field(
+        default=None, description="audio | report | video | quiz | ..."
+    )
+    status: Optional[str] = Field(
+        default=None, description="in_progress | completed | failed"
+    )
+    created_at: Optional[str] = Field(default=None, description="ISO timestamp")
+
+
+class NotebookLMStudioGenerateRequest(BaseModel):
+    remote_notebook_id: str = Field(..., description="NotebookLM notebook UUID")
+    artifact_type: str = Field(
+        ..., description="Artifact type to generate (report | audio)"
+    )
+    profile: Optional[str] = Field(
+        default=None, description="Account that owns the remote notebook"
+    )
+    target_notebook_id: Optional[str] = Field(
+        default=None,
+        description="Open Notebook notebook to attach the result to. "
+        "If omitted, a new notebook is created.",
+    )
+    title: Optional[str] = Field(default=None, description="Title for the artifact")
+    report_format: str = Field(
+        default="Briefing Doc", description="Report format (report type only)"
+    )
+    focus_prompt: str = Field(
+        default="", description="Optional focus / custom instructions"
+    )
+    language: str = Field(default="en", description="Artifact language code")
+
+
+class NotebookLMStudioGenerateResponse(BaseModel):
+    command_id: str = Field(..., description="Job id to poll via /api/commands/{id}")
+    artifact_type: str = Field(..., description="Artifact type being generated")

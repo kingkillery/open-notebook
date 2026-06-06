@@ -15,6 +15,9 @@ from api.models import (
     NotebookLMRemoteNotebook,
     NotebookLMRemoteSource,
     NotebookLMStatusResponse,
+    NotebookLMStudioArtifact,
+    NotebookLMStudioGenerateRequest,
+    NotebookLMStudioGenerateResponse,
 )
 
 router = APIRouter()
@@ -90,6 +93,50 @@ async def notebooklm_query(request: NotebookLMQueryRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"NotebookLM query failed: {e}")
+        raise HTTPException(status_code=502, detail=f"NotebookLM error: {e}")
+
+
+@router.get(
+    "/notebooklm/notebooks/{remote_notebook_id}/studio",
+    response_model=List[NotebookLMStudioArtifact],
+)
+async def notebooklm_list_studio(
+    remote_notebook_id: str,
+    profile: Optional[str] = Query(None, description="Account that owns the notebook"),
+):
+    """List existing studio artifacts for a remote notebook."""
+    try:
+        return await notebooklm_service.list_studio_artifacts(
+            remote_notebook_id, profile=profile
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"NotebookLM studio list failed: {e}")
+        raise HTTPException(status_code=502, detail=f"NotebookLM error: {e}")
+
+
+@router.post(
+    "/notebooklm/studio/generate",
+    response_model=NotebookLMStudioGenerateResponse,
+)
+async def notebooklm_generate_studio(request: NotebookLMStudioGenerateRequest):
+    """Submit a background job to generate a studio artifact and attach it."""
+    try:
+        return await notebooklm_service.generate_studio_artifact(
+            remote_notebook_id=request.remote_notebook_id,
+            artifact_type=request.artifact_type,
+            profile=request.profile,
+            target_notebook_id=request.target_notebook_id,
+            title=request.title,
+            report_format=request.report_format,
+            focus_prompt=request.focus_prompt,
+            language=request.language,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"NotebookLM studio generate failed: {e}")
         raise HTTPException(status_code=502, detail=f"NotebookLM error: {e}")
 
 

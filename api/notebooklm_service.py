@@ -247,6 +247,85 @@ async def query_remote(
 
 
 # =============================================================================
+# Studio artifact generation (async via the surreal-commands job queue)
+# =============================================================================
+
+# Artifact types the studio job can currently create + attach.
+SUPPORTED_STUDIO_TYPES = ["report", "audio"]
+
+
+async def list_studio_artifacts(
+    remote_notebook_id: str, profile: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    """List existing studio artifacts for a remote notebook."""
+
+    def _run() -> List[Dict[str, Any]]:
+        client = _client_or_raise(profile)
+        arts = client.poll_studio_status(remote_notebook_id) or []
+        out: List[Dict[str, Any]] = []
+        for a in arts:
+            if not isinstance(a, dict):
+                continue
+            out.append(
+                {
+                    "artifact_id": a.get("artifact_id"),
+                    "title": a.get("title"),
+                    "type": a.get("type"),
+                    "status": a.get("status"),
+                    "created_at": a.get("created_at"),
+                }
+            )
+        return out
+
+    return await asyncio.to_thread(_run)
+
+
+async def generate_studio_artifact(
+    remote_notebook_id: str,
+    artifact_type: str,
+    profile: Optional[str] = None,
+    target_notebook_id: Optional[str] = None,
+    title: Optional[str] = None,
+    report_format: str = "Briefing Doc",
+    focus_prompt: str = "",
+    language: str = "en",
+) -> Dict[str, Any]:
+    """Submit a background job to generate a studio artifact and attach it.
+
+    Returns the ``command_id`` to poll via ``GET /api/commands/{id}``.
+    """
+    if artifact_type not in SUPPORTED_STUDIO_TYPES:
+        raise ValueError(
+            f"Unsupported artifact type '{artifact_type}'. "
+            f"Supported: {', '.join(SUPPORTED_STUDIO_TYPES)}"
+        )
+    if not is_available():
+        raise ValueError(_NOT_INSTALLED_MSG)
+
+    from surreal_commands import submit_command
+
+    command_id = submit_command(
+        "open_notebook",
+        "generate_studio_artifact",
+        {
+            "remote_notebook_id": remote_notebook_id,
+            "artifact_type": artifact_type,
+            "profile": profile,
+            "target_notebook_id": target_notebook_id,
+            "title": title,
+            "report_format": report_format,
+            "focus_prompt": focus_prompt,
+            "language": language,
+        },
+    )
+    logger.info(
+        f"Submitted studio generation job {command_id} "
+        f"(type={artifact_type} notebook={remote_notebook_id})"
+    )
+    return {"command_id": str(command_id), "artifact_type": artifact_type}
+
+
+# =============================================================================
 # Import (NotebookLM -> Open Notebook)
 # =============================================================================
 

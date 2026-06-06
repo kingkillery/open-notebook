@@ -20,6 +20,11 @@ export const zhTW = {
     allAccounts: "All accounts",
     accountExpired: "Session expired. Refresh with:",
     addAccountHint: "Connect another Google account with:",
+    generate: "Generate",
+    generateReport: "Report",
+    generateAudio: "Audio Overview",
+    generateStarted: "Generation started — this runs in the background and can take a few minutes.",
+    generateError: "Could not start generation",
   },
   common: {
     search: "搜尋...",
