@@ -176,18 +176,46 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not start command history cleanup: {e}")
 
+    # Start the 9router watchdog so the LLM gateway stays available.
+    watchdog_task = None
+    try:
+        from open_notebook.config import (
+            NINEROUTER_CHECK_INTERVAL_SECONDS,
+            NINEROUTER_START_CMD,
+            NINEROUTER_URL,
+            NINEROUTER_WATCHDOG_ENABLED,
+        )
+
+        if NINEROUTER_WATCHDOG_ENABLED:
+            from open_notebook.integrations.ninerouter import run_9router_watchdog
+
+            watchdog_task = asyncio.create_task(
+                run_9router_watchdog(
+                    NINEROUTER_URL,
+                    NINEROUTER_START_CMD,
+                    NINEROUTER_CHECK_INTERVAL_SECONDS,
+                )
+            )
+            logger.info(
+                f"9router watchdog enabled (url={NINEROUTER_URL}, "
+                f"every {NINEROUTER_CHECK_INTERVAL_SECONDS}s)"
+            )
+    except Exception as e:
+        logger.warning(f"Could not start 9router watchdog: {e}")
+
     logger.success("API initialization completed successfully")
 
     # Yield control to the application
     yield
 
-    # Shutdown: stop the cleanup loop
-    if cleanup_task is not None:
-        cleanup_task.cancel()
-        try:
-            await cleanup_task
-        except (asyncio.CancelledError, Exception):
-            pass
+    # Shutdown: stop background loops
+    for _task in (cleanup_task, watchdog_task):
+        if _task is not None:
+            _task.cancel()
+            try:
+                await _task
+            except (asyncio.CancelledError, Exception):
+                pass
     logger.info("API shutdown complete")
 
 
