@@ -4,7 +4,10 @@ import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
-import { NotebookLMImportRequest } from '@/lib/types/api'
+import {
+  NotebookLMImportRequest,
+  NotebookLMStudioGenerateRequest,
+} from '@/lib/types/api'
 
 export function useNotebookLMStatus() {
   return useQuery({
@@ -41,6 +44,29 @@ export function useImportNotebookLM() {
       toast({
         title: t('notebooklm.importError'),
         description: getApiErrorMessage(error, t, 'notebooklm.importError'),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useGenerateStudioArtifact() {
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: (data: NotebookLMStudioGenerateRequest) =>
+      notebooklmApi.generateStudio(data),
+    onSuccess: () => {
+      toast({
+        title: t('common.success'),
+        description: t('notebooklm.generateStarted'),
+      })
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('notebooklm.generateError'),
+        description: getApiErrorMessage(error, t, 'notebooklm.generateError'),
         variant: 'destructive',
       })
     },

@@ -5,6 +5,8 @@ import {
   NotebookLMRemoteNotebook,
   NotebookLMImportRequest,
   NotebookLMImportResponse,
+  NotebookLMStudioGenerateRequest,
+  NotebookLMStudioGenerateResponse,
 } from '@/lib/types/api'
 
 export const notebooklmApi = {
@@ -31,6 +33,14 @@ export const notebooklmApi = {
   importNotebook: async (data: NotebookLMImportRequest) => {
     const response = await apiClient.post<NotebookLMImportResponse>(
       '/notebooklm/import',
+      data
+    )
+    return response.data
+  },
+
+  generateStudio: async (data: NotebookLMStudioGenerateRequest) => {
+    const response = await apiClient.post<NotebookLMStudioGenerateResponse>(
+      '/notebooklm/studio/generate',
       data
     )
     return response.data

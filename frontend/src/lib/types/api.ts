@@ -287,3 +287,19 @@ export interface NotebookLMImportResponse {
   notes_imported: number
   warnings: string[]
 }
+
+export interface NotebookLMStudioGenerateRequest {
+  remote_notebook_id: string
+  artifact_type: 'report' | 'audio'
+  profile?: string | null
+  target_notebook_id?: string | null
+  title?: string | null
+  report_format?: string
+  focus_prompt?: string
+  language?: string
+}
+
+export interface NotebookLMStudioGenerateResponse {
+  command_id: string
+  artifact_type: string
+}
