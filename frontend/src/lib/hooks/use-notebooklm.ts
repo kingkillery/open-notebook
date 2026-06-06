@@ -14,10 +14,10 @@ export function useNotebookLMStatus() {
   })
 }
 
-export function useNotebookLMNotebooks(enabled: boolean) {
+export function useNotebookLMNotebooks(enabled: boolean, profile?: string) {
   return useQuery({
-    queryKey: QUERY_KEYS.notebooklmNotebooks,
-    queryFn: () => notebooklmApi.listNotebooks(),
+    queryKey: QUERY_KEYS.notebooklmNotebooks(profile),
+    queryFn: () => notebooklmApi.listNotebooks(profile),
     enabled,
   })
 }

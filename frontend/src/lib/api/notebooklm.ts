@@ -1,5 +1,6 @@
 import apiClient from './client'
 import {
+  NotebookLMAccount,
   NotebookLMStatus,
   NotebookLMRemoteNotebook,
   NotebookLMImportRequest,
@@ -12,9 +13,17 @@ export const notebooklmApi = {
     return response.data
   },
 
-  listNotebooks: async () => {
+  accounts: async () => {
+    const response = await apiClient.get<NotebookLMAccount[]>(
+      '/notebooklm/accounts'
+    )
+    return response.data
+  },
+
+  listNotebooks: async (profile?: string) => {
     const response = await apiClient.get<NotebookLMRemoteNotebook[]>(
-      '/notebooklm/notebooks'
+      '/notebooklm/notebooks',
+      { params: profile ? { profile } : undefined }
     )
     return response.data
   },

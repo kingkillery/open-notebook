@@ -1,13 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, Download } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, RefreshCw, Download, Users } from 'lucide-react'
 
 import { AppShell } from '@/components/layout/AppShell'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Card,
   CardContent,
@@ -23,14 +30,20 @@ import {
 } from '@/lib/hooks/use-notebooklm'
 import type { NotebookLMRemoteNotebook } from '@/lib/types/api'
 
+const ALL = '__all__'
+
 export default function NotebookLMPage() {
   const { t } = useTranslation()
   const status = useNotebookLMStatus()
+  const accounts = status.data?.accounts ?? []
   const connected = !!status.data?.authenticated
-  const notebooks = useNotebookLMNotebooks(connected)
+
+  // Account filter: ALL aggregates across every connected account.
+  const [selected, setSelected] = useState<string>(ALL)
+  const profileFilter = selected === ALL ? undefined : selected
+  const notebooks = useNotebookLMNotebooks(connected, profileFilter)
   const importMutation = useImportNotebookLM()
 
-  // Import options (shared across rows for simplicity).
   const [importSources, setImportSources] = useState(true)
   const [importNotes, setImportNotes] = useState(true)
   const [embed, setEmbed] = useState(false)
@@ -44,10 +57,14 @@ export default function NotebookLMPage() {
         import_sources: importSources,
         import_notes: importNotes,
         embed,
+        profile: nb.profile,
       },
       { onSettled: () => setPendingId(null) }
     )
   }
+
+  const expiredAccounts = accounts.filter((a) => !a.authenticated)
+  const multipleAccounts = accounts.length > 1
 
   const renderStatus = () => {
     if (status.isLoading) return null
@@ -63,7 +80,7 @@ export default function NotebookLMPage() {
         </Alert>
       )
     }
-    if (!s.authenticated) {
+    if (!connected) {
       return (
         <Alert className="bg-amber-50 text-amber-900 border-amber-200">
           <AlertTriangle className="h-4 w-4" />
@@ -78,6 +95,7 @@ export default function NotebookLMPage() {
       <Alert className="bg-emerald-50 text-emerald-900 border-emerald-200">
         <CheckCircle2 className="h-4 w-4" />
         <AlertTitle>{t('notebooklm.statusConnected')}</AlertTitle>
+        <AlertDescription>{s.message}</AlertDescription>
       </Alert>
     )
   }
@@ -111,9 +129,57 @@ export default function NotebookLMPage() {
 
           {renderStatus()}
 
+          {/* Per-account expired-session warnings */}
+          {expiredAccounts.map((a) => (
+            <Alert
+              key={a.profile}
+              className="bg-amber-50 text-amber-900 border-amber-200"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>{a.email || a.profile}</AlertTitle>
+              <AlertDescription>
+                {t('notebooklm.accountExpired')}{' '}
+                <code>nlm login --profile {a.profile}</code>
+              </AlertDescription>
+            </Alert>
+          ))}
+
+          {/* Hint for connecting more accounts */}
+          {connected && (
+            <p className="text-xs text-muted-foreground">
+              {t('notebooklm.addAccountHint')}{' '}
+              <code>nlm login --profile &lt;name&gt;</code>
+            </p>
+          )}
+
           {connected && (
             <>
               <div className="flex flex-wrap items-center gap-6 rounded-md border p-4">
+                {/* Account picker (only meaningful with 2+ accounts) */}
+                {multipleAccounts && (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <Select value={selected} onValueChange={setSelected}>
+                      <SelectTrigger className="w-[240px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL}>
+                          {t('notebooklm.allAccounts')}
+                        </SelectItem>
+                        {accounts.map((a) => (
+                          <SelectItem
+                            key={a.profile}
+                            value={a.profile}
+                            disabled={!a.authenticated}
+                          >
+                            {a.email || a.profile}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <label className="flex items-center gap-2 text-sm">
                   <Checkbox
                     checked={importSources}
@@ -150,15 +216,18 @@ export default function NotebookLMPage() {
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {notebooks.data?.map((nb) => (
-                  <Card key={nb.id} className="flex flex-col">
+                  <Card key={`${nb.profile}:${nb.id}`} className="flex flex-col">
                     <CardHeader>
                       <CardTitle className="text-base line-clamp-2">
                         {nb.title}
                       </CardTitle>
-                      <CardDescription>
+                      <CardDescription className="flex flex-wrap items-center gap-2">
                         <Badge variant="secondary">
                           {nb.source_count} {t('notebooklm.sources')}
                         </Badge>
+                        {multipleAccounts && nb.account && (
+                          <Badge variant="outline">{nb.account}</Badge>
+                        )}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="mt-auto flex items-center gap-2">

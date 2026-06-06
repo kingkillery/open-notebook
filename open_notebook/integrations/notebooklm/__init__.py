@@ -19,13 +19,17 @@ clear, actionable error instead of an opaque ``ImportError``.
 from open_notebook.integrations.notebooklm.bridge import (
     NotebookLMNotAuthenticatedError,
     NotebookLMNotAvailableError,
+    get_account_email,
     get_client,
     is_available,
+    list_profiles,
 )
 
 __all__ = [
     "NotebookLMNotAvailableError",
     "NotebookLMNotAuthenticatedError",
+    "get_account_email",
     "get_client",
     "is_available",
+    "list_profiles",
 ]

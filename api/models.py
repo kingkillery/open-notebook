@@ -698,15 +698,27 @@ class NotebookDeleteResponse(BaseModel):
 # =============================================================================
 
 
+class NotebookLMAccount(BaseModel):
+    profile: str = Field(..., description="Auth profile name (one per Google account)")
+    email: Optional[str] = Field(default=None, description="Google account email")
+    authenticated: bool = Field(
+        ..., description="Whether this account's session is currently valid"
+    )
+    message: str = Field(default="", description="Per-account status / hint")
+
+
 class NotebookLMStatusResponse(BaseModel):
     available: bool = Field(
         ..., description="Whether the notebooklm_tools package is installed"
     )
     authenticated: bool = Field(
-        ..., description="Whether a usable Google NotebookLM session is available"
+        ..., description="Whether at least one account session is valid"
     )
     message: str = Field(
         default="", description="Human-readable status / remediation hint"
+    )
+    accounts: List[NotebookLMAccount] = Field(
+        default_factory=list, description="All connected NotebookLM accounts"
     )
 
 
@@ -721,6 +733,12 @@ class NotebookLMRemoteNotebook(BaseModel):
         default=None, description="ISO modified timestamp"
     )
     url: Optional[str] = Field(default=None, description="NotebookLM web URL")
+    profile: str = Field(
+        ..., description="Auth profile (Google account) this notebook belongs to"
+    )
+    account: Optional[str] = Field(
+        default=None, description="Google account email this notebook belongs to"
+    )
 
 
 class NotebookLMRemoteSource(BaseModel):
@@ -748,6 +766,10 @@ class NotebookLMImportRequest(BaseModel):
         default=False,
         description="Vectorize imported sources for semantic search (slower)",
     )
+    profile: Optional[str] = Field(
+        default=None,
+        description="Auth profile (Google account) that owns the remote notebook",
+    )
 
 
 class NotebookLMImportResponse(BaseModel):
@@ -765,6 +787,10 @@ class NotebookLMQueryRequest(BaseModel):
     query: str = Field(..., description="Question to ask, grounded in the sources")
     conversation_id: Optional[str] = Field(
         default=None, description="Conversation id for follow-up questions"
+    )
+    profile: Optional[str] = Field(
+        default=None,
+        description="Auth profile (Google account) that owns the remote notebook",
     )
 
 

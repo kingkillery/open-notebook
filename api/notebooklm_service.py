@@ -5,6 +5,12 @@ synchronous ``notebooklm_tools`` client with ``asyncio.to_thread`` so it plays
 nicely with the async API layer, and maps NotebookLM data onto Open Notebook's
 own ``Notebook`` / ``Source`` / ``Note`` domain models.
 
+Multi-account: each Google account is a named ``profile`` in the
+``notebooklm_tools`` store (created via ``nlm login --profile <name>``). Every
+function takes an optional ``profile``; listing with ``profile=None`` aggregates
+across all connected accounts, tagging each notebook with its owning profile so
+imports route back to the right account.
+
 All functions raise ``ValueError`` for business/availability errors; routers
 convert those to HTTP responses.
 """
@@ -20,53 +26,108 @@ from open_notebook.domain.notebook import Asset, Note, Notebook, Source
 from open_notebook.integrations.notebooklm import (
     NotebookLMNotAuthenticatedError,
     NotebookLMNotAvailableError,
+    get_account_email,
     get_client,
     is_available,
+    list_profiles,
 )
 
+_NOT_INSTALLED_MSG = (
+    "NotebookLM integration not installed. Run: uv sync --extra notebooklm"
+)
+
+
+def _friendly_auth_error(msg: str) -> str:
+    """Normalise expired-session errors into an actionable hint."""
+    if "Authentication" in msg or "expired" in msg.lower():
+        return (
+            "Google session expired. Run 'nlm login --profile <name>' to "
+            "refresh this account's cookies."
+        )
+    return msg
+
+
 # =============================================================================
-# Status / auth
+# Accounts / status
 # =============================================================================
+
+
+def _probe_account(profile: str) -> Dict[str, Any]:
+    """Synchronously check one profile's live auth state (worker-thread only)."""
+    email = get_account_email(profile)
+    try:
+        client = get_client(profile)
+        client.list_notebooks()  # cheap authenticated RPC = liveness check
+        return {
+            "profile": profile,
+            "email": email,
+            "authenticated": True,
+            "message": "Connected.",
+        }
+    except (NotebookLMNotAuthenticatedError, NotebookLMNotAvailableError) as e:
+        return {
+            "profile": profile,
+            "email": email,
+            "authenticated": False,
+            "message": str(e),
+        }
+    except Exception as e:
+        return {
+            "profile": profile,
+            "email": email,
+            "authenticated": False,
+            "message": _friendly_auth_error(str(e)),
+        }
+
+
+async def list_accounts() -> List[Dict[str, Any]]:
+    """List every connected NotebookLM account with its live auth state."""
+    if not is_available():
+        return []
+
+    def _run() -> List[Dict[str, Any]]:
+        return [_probe_account(p) for p in list_profiles()]
+
+    return await asyncio.to_thread(_run)
 
 
 async def get_status() -> Dict[str, Any]:
-    """Report integration availability and live authentication state."""
+    """Report integration availability and whether *any* account is connected."""
     if not is_available():
         return {
             "available": False,
             "authenticated": False,
-            "message": (
-                "NotebookLM integration not installed. "
-                "Run: uv sync --extra notebooklm"
-            ),
+            "message": _NOT_INSTALLED_MSG,
+            "accounts": [],
         }
 
-    def _probe() -> Dict[str, Any]:
-        try:
-            client = get_client()
-        except NotebookLMNotAuthenticatedError as e:
-            return {"available": True, "authenticated": False, "message": str(e)}
-        except NotebookLMNotAvailableError as e:
-            return {"available": False, "authenticated": False, "message": str(e)}
+    accounts = await list_accounts()
+    if not accounts:
+        return {
+            "available": True,
+            "authenticated": False,
+            "message": (
+                "No NotebookLM accounts connected. Run 'nlm login' (or "
+                "'nlm login --profile <name>' for additional accounts)."
+            ),
+            "accounts": [],
+        }
 
-        try:
-            # A cheap authenticated RPC doubles as a liveness check.
-            client.list_notebooks()
-            return {
-                "available": True,
-                "authenticated": True,
-                "message": "Connected to Google NotebookLM.",
-            }
-        except Exception as e:  # AuthenticationError or transport failure
-            msg = str(e)
-            if "Authentication" in msg or "expired" in msg.lower():
-                msg = (
-                    "Google session expired. Run 'nlm login' to refresh your "
-                    "NotebookLM cookies."
-                )
-            return {"available": True, "authenticated": False, "message": msg}
-
-    return await asyncio.to_thread(_probe)
+    connected = [a for a in accounts if a["authenticated"]]
+    if connected:
+        emails = ", ".join(a["email"] or a["profile"] for a in connected)
+        message = f"Connected: {emails}"
+    else:
+        message = (
+            "All connected accounts have expired sessions. Run "
+            "'nlm login --profile <name>' to refresh."
+        )
+    return {
+        "available": True,
+        "authenticated": bool(connected),
+        "message": message,
+        "accounts": accounts,
+    }
 
 
 # =============================================================================
@@ -74,13 +135,11 @@ async def get_status() -> Dict[str, Any]:
 # =============================================================================
 
 
-def _client_or_raise():
-    """Build a client in the calling (worker) thread, mapping errors to ValueError."""
+def _client_or_raise(profile: Optional[str] = None):
+    """Build a client in the worker thread, mapping errors to ValueError."""
     try:
-        return get_client()
-    except NotebookLMNotAvailableError as e:
-        raise ValueError(str(e)) from e
-    except NotebookLMNotAuthenticatedError as e:
+        return get_client(profile)
+    except (NotebookLMNotAvailableError, NotebookLMNotAuthenticatedError) as e:
         raise ValueError(str(e)) from e
 
 
@@ -89,36 +148,57 @@ def _client_or_raise():
 # =============================================================================
 
 
-async def list_remote_notebooks() -> List[Dict[str, Any]]:
-    """List the user's NotebookLM notebooks."""
+def _notebook_to_dict(nb: Any, profile: str, account: Optional[str]) -> Dict[str, Any]:
+    return {
+        "id": getattr(nb, "id", None),
+        "title": getattr(nb, "title", "") or "Untitled",
+        "source_count": getattr(nb, "source_count", 0) or 0,
+        "is_owned": getattr(nb, "is_owned", True),
+        "is_shared": getattr(nb, "is_shared", False),
+        "created_at": getattr(nb, "created_at", None),
+        "modified_at": getattr(nb, "modified_at", None),
+        "url": getattr(nb, "url", None),
+        "profile": profile,
+        "account": account,
+    }
 
-    def _run() -> List[Dict[str, Any]]:
-        client = _client_or_raise()
-        notebooks = client.list_notebooks()
+
+async def list_remote_notebooks(
+    profile: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """List NotebookLM notebooks.
+
+    With ``profile`` set, lists that one account. With ``profile=None``,
+    aggregates across every connected account (accounts whose session has
+    expired are skipped rather than failing the whole call).
+    """
+
+    def _run_single(p: str) -> List[Dict[str, Any]]:
+        client = _client_or_raise(p)
+        account = get_account_email(p)
+        return [_notebook_to_dict(nb, p, account) for nb in client.list_notebooks()]
+
+    def _run_all() -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
-        for nb in notebooks:
-            out.append(
-                {
-                    "id": getattr(nb, "id", None),
-                    "title": getattr(nb, "title", "") or "Untitled",
-                    "source_count": getattr(nb, "source_count", 0) or 0,
-                    "is_owned": getattr(nb, "is_owned", True),
-                    "is_shared": getattr(nb, "is_shared", False),
-                    "created_at": getattr(nb, "created_at", None),
-                    "modified_at": getattr(nb, "modified_at", None),
-                    "url": getattr(nb, "url", None),
-                }
-            )
+        for p in list_profiles():
+            try:
+                out.extend(_run_single(p))
+            except Exception as e:
+                logger.warning(f"NotebookLM account '{p}' skipped: {e}")
         return out
 
-    return await asyncio.to_thread(_run)
+    if profile:
+        return await asyncio.to_thread(_run_single, profile)
+    return await asyncio.to_thread(_run_all)
 
 
-async def list_remote_sources(remote_notebook_id: str) -> List[Dict[str, Any]]:
+async def list_remote_sources(
+    remote_notebook_id: str, profile: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """List sources (with type info) for a remote notebook."""
 
     def _run() -> List[Dict[str, Any]]:
-        client = _client_or_raise()
+        client = _client_or_raise(profile)
         raw = client.get_notebook_sources_with_types(remote_notebook_id) or []
         out: List[Dict[str, Any]] = []
         for s in raw:
@@ -145,11 +225,12 @@ async def query_remote(
     remote_notebook_id: str,
     query_text: str,
     conversation_id: Optional[str] = None,
+    profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Ask a question grounded in a remote notebook's sources."""
 
     def _run() -> Dict[str, Any]:
-        client = _client_or_raise()
+        client = _client_or_raise(profile)
         result = client.query(
             notebook_id=remote_notebook_id,
             query_text=query_text,
@@ -176,9 +257,11 @@ async def import_notebook(
     import_sources: bool = True,
     import_notes: bool = True,
     embed: bool = False,
+    profile: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Import a NotebookLM notebook's sources and notes into Open Notebook.
 
+    ``profile`` selects which connected Google account owns the notebook.
     Network/blocking fetches against NotebookLM run in worker threads; the
     Open Notebook DB writes stay on the event loop (the domain layer is async).
     """
@@ -186,7 +269,7 @@ async def import_notebook(
 
     # --- Fetch remote metadata + payloads in a worker thread -----------------
     def _fetch() -> Dict[str, Any]:
-        client = _client_or_raise()
+        client = _client_or_raise(profile)
 
         # Resolve a title for a newly created notebook.
         title = "Imported from NotebookLM"
@@ -290,7 +373,7 @@ async def import_notebook(
 
     logger.info(
         f"NotebookLM import complete: notebook={notebook_id} "
-        f"sources={sources_imported} notes={notes_imported} "
+        f"profile={profile} sources={sources_imported} notes={notes_imported} "
         f"warnings={len(warnings)}"
     )
 

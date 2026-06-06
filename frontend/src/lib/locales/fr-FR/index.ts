@@ -17,6 +17,9 @@ export const frFR = {
     importError: "Import failed",
     empty: "No notebooks found.",
     loadError: "Could not load NotebookLM notebooks",
+    allAccounts: "All accounts",
+    accountExpired: "Session expired. Refresh with:",
+    addAccountHint: "Connect another Google account with:",
   },
   common: {
     search: "Recherche...",

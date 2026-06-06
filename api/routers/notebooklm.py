@@ -1,12 +1,13 @@
-"""Router for the optional Google NotebookLM bridge."""
+"""Router for the optional Google NotebookLM bridge (multi-account)."""
 
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
 
 from api import notebooklm_service
 from api.models import (
+    NotebookLMAccount,
     NotebookLMImportRequest,
     NotebookLMImportResponse,
     NotebookLMQueryRequest,
@@ -21,7 +22,7 @@ router = APIRouter()
 
 @router.get("/notebooklm/status", response_model=NotebookLMStatusResponse)
 async def notebooklm_status():
-    """Report whether the NotebookLM bridge is installed and authenticated."""
+    """Report install state plus every connected account's auth state."""
     try:
         return await notebooklm_service.get_status()
     except Exception as e:
@@ -29,13 +30,25 @@ async def notebooklm_status():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get(
-    "/notebooklm/notebooks", response_model=List[NotebookLMRemoteNotebook]
-)
-async def notebooklm_list_notebooks():
-    """List the user's NotebookLM notebooks."""
+@router.get("/notebooklm/accounts", response_model=List[NotebookLMAccount])
+async def notebooklm_accounts():
+    """List all connected NotebookLM accounts with live auth state."""
     try:
-        return await notebooklm_service.list_remote_notebooks()
+        return await notebooklm_service.list_accounts()
+    except Exception as e:
+        logger.error(f"NotebookLM accounts failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/notebooklm/notebooks", response_model=List[NotebookLMRemoteNotebook])
+async def notebooklm_list_notebooks(
+    profile: Optional[str] = Query(
+        None, description="Limit to one account; omit to aggregate across all"
+    ),
+):
+    """List NotebookLM notebooks for one account, or all accounts if omitted."""
+    try:
+        return await notebooklm_service.list_remote_notebooks(profile=profile)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -47,10 +60,15 @@ async def notebooklm_list_notebooks():
     "/notebooklm/notebooks/{remote_notebook_id}/sources",
     response_model=List[NotebookLMRemoteSource],
 )
-async def notebooklm_list_sources(remote_notebook_id: str):
+async def notebooklm_list_sources(
+    remote_notebook_id: str,
+    profile: Optional[str] = Query(None, description="Account that owns the notebook"),
+):
     """List sources for a remote NotebookLM notebook."""
     try:
-        return await notebooklm_service.list_remote_sources(remote_notebook_id)
+        return await notebooklm_service.list_remote_sources(
+            remote_notebook_id, profile=profile
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -66,6 +84,7 @@ async def notebooklm_query(request: NotebookLMQueryRequest):
             remote_notebook_id=request.remote_notebook_id,
             query_text=request.query,
             conversation_id=request.conversation_id,
+            profile=request.profile,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -84,6 +103,7 @@ async def notebooklm_import(request: NotebookLMImportRequest):
             import_sources=request.import_sources,
             import_notes=request.import_notes,
             embed=request.embed,
+            profile=request.profile,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

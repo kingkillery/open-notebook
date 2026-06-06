@@ -59,21 +59,57 @@ def is_available() -> bool:
         return False
 
 
-def _load_tokens(profile: Optional[str] = None):
-    """Load cached auth tokens from the notebooklm_tools profile store.
+def list_profiles() -> list[str]:
+    """List all available NotebookLM auth profiles (one per Google account).
 
-    ``profile`` falls back to the package's configured default profile, or to
-    the ``NOTEBOOKLM_PROFILE`` env var, when not provided.
+    Returns an empty list when the package is missing or no profiles exist.
     """
+    try:
+        from notebooklm_tools.core.auth import AuthManager
+
+        return AuthManager.list_profiles()
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"list_profiles failed: {e}")
+        return []
+
+
+def get_account_email(profile: str) -> Optional[str]:
+    """Return the Google account email stored for a profile, if known."""
+    try:
+        from notebooklm_tools.core.auth import AuthManager
+
+        mgr = AuthManager(profile)
+        if not mgr.profile_exists():
+            return None
+        return mgr.load_profile().email
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"get_account_email({profile}) failed: {e}")
+        return None
+
+
+def _load_tokens(profile: Optional[str] = None):
+    """Load cached auth tokens for a specific profile (Google account).
+
+    A named ``profile`` is loaded directly via ``AuthManager`` — the package's
+    ``load_cached_tokens()`` ignores its caller and always returns the default
+    profile, so it cannot be used for multi-account. ``profile`` falls back to
+    the ``NOTEBOOKLM_PROFILE`` env var, then to the configured default.
+    """
+    profile = profile or os.environ.get("NOTEBOOKLM_PROFILE")
+
+    if profile:
+        from notebooklm_tools.core.auth import AuthManager
+
+        mgr = AuthManager(profile)
+        if not mgr.profile_exists():
+            return None
+        # Profile exposes .cookies / .csrf_token / .session_id, matching the
+        # AuthTokens shape get_client() consumes.
+        return mgr.load_profile()
+
     from notebooklm_tools.core.auth import load_cached_tokens
 
-    profile = profile or os.environ.get("NOTEBOOKLM_PROFILE")
-    try:
-        # load_cached_tokens accepts an optional profile in recent versions;
-        # fall back to the no-arg form for older builds.
-        return load_cached_tokens(profile) if profile else load_cached_tokens()
-    except TypeError:
-        return load_cached_tokens()
+    return load_cached_tokens()
 
 
 def get_client(profile: Optional[str] = None) -> "NotebookLMClient":

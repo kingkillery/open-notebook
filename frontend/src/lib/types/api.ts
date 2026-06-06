@@ -244,10 +244,18 @@ export interface BuildContextResponse {
 // NotebookLM bridge types (optional Google NotebookLM integration)
 // ===========================================================================
 
+export interface NotebookLMAccount {
+  profile: string
+  email?: string | null
+  authenticated: boolean
+  message: string
+}
+
 export interface NotebookLMStatus {
   available: boolean
   authenticated: boolean
   message: string
+  accounts: NotebookLMAccount[]
 }
 
 export interface NotebookLMRemoteNotebook {
@@ -259,6 +267,8 @@ export interface NotebookLMRemoteNotebook {
   created_at?: string | null
   modified_at?: string | null
   url?: string | null
+  profile: string
+  account?: string | null
 }
 
 export interface NotebookLMImportRequest {
@@ -267,6 +277,7 @@ export interface NotebookLMImportRequest {
   import_sources: boolean
   import_notes: boolean
   embed: boolean
+  profile?: string | null
 }
 
 export interface NotebookLMImportResponse {
