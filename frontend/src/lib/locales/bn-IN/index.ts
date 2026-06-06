@@ -1,4 +1,23 @@
 export const bnIN = {
+  notebooklm: {
+    title: "Google NotebookLM",
+    subtitle: "Browse your Google NotebookLM notebooks and import them into Open Notebook.",
+    statusConnected: "Connected to Google NotebookLM",
+    statusExpired: "Google session expired — run 'nlm login' to refresh your cookies.",
+    statusNotInstalled: "Integration not installed. Run: uv sync --extra notebooklm",
+    refresh: "Refresh",
+    sources: "sources",
+    open: "Open in NotebookLM",
+    import: "Import",
+    importing: "Importing…",
+    importSources: "Import sources",
+    importNotes: "Import notes",
+    embed: "Generate embeddings (slower)",
+    importSuccess: "Import complete",
+    importError: "Import failed",
+    empty: "No notebooks found.",
+    loadError: "Could not load NotebookLM notebooks",
+  },
   common: {
     search: "অনুসন্ধান...",
     create: "নতুন",
@@ -202,6 +221,7 @@ export const bnIN = {
     connectErrorHint: "সার্ভারে সংযোগ করতে অক্ষম। API চালু আছে কিনা চেক করুন।",
   },
   navigation: {
+    notebooklm: "NotebookLM",
     collect: "সংগ্রহ",
     process: "প্রক্রিয়া",
     create: "তৈরি",

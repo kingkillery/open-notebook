@@ -1,4 +1,23 @@
 export const enUS = {
+  notebooklm: {
+    title: "Google NotebookLM",
+    subtitle: "Browse your Google NotebookLM notebooks and import them into Open Notebook.",
+    statusConnected: "Connected to Google NotebookLM",
+    statusExpired: "Google session expired — run 'nlm login' to refresh your cookies.",
+    statusNotInstalled: "Integration not installed. Run: uv sync --extra notebooklm",
+    refresh: "Refresh",
+    sources: "sources",
+    open: "Open in NotebookLM",
+    import: "Import",
+    importing: "Importing…",
+    importSources: "Import sources",
+    importNotes: "Import notes",
+    embed: "Generate embeddings (slower)",
+    importSuccess: "Import complete",
+    importError: "Import failed",
+    empty: "No notebooks found.",
+    loadError: "Could not load NotebookLM notebooks",
+  },
   common: {
     search: "Search...",
     create: "New",
@@ -202,6 +221,7 @@ export const enUS = {
     connectErrorHint: "Unable to connect to server. Please check if the API is running.",
   },
   navigation: {
+    notebooklm: "NotebookLM",
     collect: "Collect",
     process: "Process",
     create: "Create",

@@ -239,3 +239,40 @@ export interface BuildContextResponse {
   token_count: number
   char_count: number
 }
+
+// ===========================================================================
+// NotebookLM bridge types (optional Google NotebookLM integration)
+// ===========================================================================
+
+export interface NotebookLMStatus {
+  available: boolean
+  authenticated: boolean
+  message: string
+}
+
+export interface NotebookLMRemoteNotebook {
+  id: string
+  title: string
+  source_count: number
+  is_owned: boolean
+  is_shared: boolean
+  created_at?: string | null
+  modified_at?: string | null
+  url?: string | null
+}
+
+export interface NotebookLMImportRequest {
+  remote_notebook_id: string
+  target_notebook_id?: string | null
+  import_sources: boolean
+  import_notes: boolean
+  embed: boolean
+}
+
+export interface NotebookLMImportResponse {
+  notebook_id: string
+  created_notebook: boolean
+  sources_imported: number
+  notes_imported: number
+  warnings: string[]
+}

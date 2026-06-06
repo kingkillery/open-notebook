@@ -691,3 +691,85 @@ class NotebookDeleteResponse(BaseModel):
     unlinked_sources: int = Field(
         ..., description="Number of sources unlinked from notebook"
     )
+
+
+# =============================================================================
+# NotebookLM bridge models (optional Google NotebookLM integration)
+# =============================================================================
+
+
+class NotebookLMStatusResponse(BaseModel):
+    available: bool = Field(
+        ..., description="Whether the notebooklm_tools package is installed"
+    )
+    authenticated: bool = Field(
+        ..., description="Whether a usable Google NotebookLM session is available"
+    )
+    message: str = Field(
+        default="", description="Human-readable status / remediation hint"
+    )
+
+
+class NotebookLMRemoteNotebook(BaseModel):
+    id: str = Field(..., description="NotebookLM notebook UUID")
+    title: str = Field(..., description="Notebook title")
+    source_count: int = Field(default=0, description="Number of sources")
+    is_owned: bool = Field(default=True, description="Owned by the current user")
+    is_shared: bool = Field(default=False, description="Shared with others")
+    created_at: Optional[str] = Field(default=None, description="ISO created timestamp")
+    modified_at: Optional[str] = Field(
+        default=None, description="ISO modified timestamp"
+    )
+    url: Optional[str] = Field(default=None, description="NotebookLM web URL")
+
+
+class NotebookLMRemoteSource(BaseModel):
+    id: str = Field(..., description="NotebookLM source UUID")
+    title: Optional[str] = Field(default=None, description="Source title")
+    type: Optional[str] = Field(default=None, description="Source type")
+
+
+class NotebookLMImportRequest(BaseModel):
+    remote_notebook_id: str = Field(
+        ..., description="NotebookLM notebook UUID to import from"
+    )
+    target_notebook_id: Optional[str] = Field(
+        default=None,
+        description="Existing Open Notebook notebook id to import into. "
+        "If omitted, a new notebook is created.",
+    )
+    import_sources: bool = Field(
+        default=True, description="Import sources (full text) as Open Notebook sources"
+    )
+    import_notes: bool = Field(
+        default=True, description="Import notes as Open Notebook notes"
+    )
+    embed: bool = Field(
+        default=False,
+        description="Vectorize imported sources for semantic search (slower)",
+    )
+
+
+class NotebookLMImportResponse(BaseModel):
+    notebook_id: str = Field(..., description="Open Notebook notebook id used/created")
+    created_notebook: bool = Field(
+        ..., description="Whether a new notebook was created"
+    )
+    sources_imported: int = Field(default=0, description="Number of sources imported")
+    notes_imported: int = Field(default=0, description="Number of notes imported")
+    warnings: List[str] = Field(default_factory=list, description="Non-fatal warnings")
+
+
+class NotebookLMQueryRequest(BaseModel):
+    remote_notebook_id: str = Field(..., description="NotebookLM notebook UUID")
+    query: str = Field(..., description="Question to ask, grounded in the sources")
+    conversation_id: Optional[str] = Field(
+        default=None, description="Conversation id for follow-up questions"
+    )
+
+
+class NotebookLMQueryResponse(BaseModel):
+    answer: str = Field(..., description="Source-grounded answer")
+    conversation_id: Optional[str] = Field(
+        default=None, description="Conversation id for follow-ups"
+    )

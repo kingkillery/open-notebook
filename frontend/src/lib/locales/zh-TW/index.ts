@@ -1,4 +1,23 @@
 export const zhTW = {
+  notebooklm: {
+    title: "Google NotebookLM",
+    subtitle: "Browse your Google NotebookLM notebooks and import them into Open Notebook.",
+    statusConnected: "Connected to Google NotebookLM",
+    statusExpired: "Google session expired — run 'nlm login' to refresh your cookies.",
+    statusNotInstalled: "Integration not installed. Run: uv sync --extra notebooklm",
+    refresh: "Refresh",
+    sources: "sources",
+    open: "Open in NotebookLM",
+    import: "Import",
+    importing: "Importing…",
+    importSources: "Import sources",
+    importNotes: "Import notes",
+    embed: "Generate embeddings (slower)",
+    importSuccess: "Import complete",
+    importError: "Import failed",
+    empty: "No notebooks found.",
+    loadError: "Could not load NotebookLM notebooks",
+  },
   common: {
     search: "搜尋...",
     create: "新增",
@@ -202,6 +221,7 @@ export const zhTW = {
     connectErrorHint: "無法連線至伺服器。請檢查 API 是否正在運行。",
   },
   navigation: {
+    notebooklm: "NotebookLM",
     collect: "採集",
     process: "處理",
     create: "創作",

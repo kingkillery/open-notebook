@@ -25,6 +25,7 @@ from api.routers import (
     insights,
     languages,
     models,
+    notebooklm,
     notebooks,
     notes,
     podcasts,
@@ -290,6 +291,7 @@ async def open_notebook_error_handler(request: Request, exc: OpenNotebookError):
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(config.router, prefix="/api", tags=["config"])
 app.include_router(notebooks.router, prefix="/api", tags=["notebooks"])
+app.include_router(notebooklm.router, prefix="/api", tags=["notebooklm"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(models.router, prefix="/api", tags=["models"])
 app.include_router(transformations.router, prefix="/api", tags=["transformations"])

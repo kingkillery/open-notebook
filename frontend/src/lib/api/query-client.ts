@@ -32,4 +32,6 @@ export const QUERY_KEYS = {
   episodeProfiles: ['podcasts', 'episode-profiles'] as const,
   speakerProfiles: ['podcasts', 'speaker-profiles'] as const,
   languages: ['languages'] as const,
+  notebooklmStatus: ['notebooklm', 'status'] as const,
+  notebooklmNotebooks: ['notebooklm', 'notebooks'] as const,
 }

@@ -60,6 +60,17 @@ dev = [
     "pre-commit>=4.0.1",
     "pytest>=9.0.3",
 ]
+# Optional bridge to Google NotebookLM (reverse-engineered private API).
+# Opt-in: the integration is guarded so the rest of Open Notebook works without it.
+# Install with: uv sync --extra notebooklm
+notebooklm = [
+    "private-api-automation",
+]
+
+[tool.uv.sources]
+# Local checkout of the NotebookLM Tools package (not published to PyPI).
+# Adjust the path if your checkout lives elsewhere.
+private-api-automation = { path = "C:/Users/prest/private-api-auto-temp", editable = true }
 
 [build-system]
 requires = ["setuptools>=61.0"]
