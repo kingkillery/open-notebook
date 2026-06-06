@@ -1,4 +1,4 @@
-.PHONY: run frontend check ruff database lint api start-all stop-all status clean-cache worker worker-start worker-stop worker-restart
+.PHONY: run frontend glimpse check ruff database lint api start-all stop-all status clean-cache worker worker-start worker-stop worker-restart
 .PHONY: docker-buildx-prepare docker-buildx-clean docker-buildx-reset
 .PHONY: docker-push docker-push-latest docker-release docker-build-local tag export-docs
 
@@ -21,6 +21,12 @@ run:
 
 frontend:
 	cd frontend && npm run dev
+
+# Open the running app in a native Glimpse WebView window. Requires the stack
+# to be running (e.g. 'make start-all') and the global 'glimpseui' package
+# (npm install -g glimpseui). Override the target page with URL=...
+glimpse:
+	node scripts/glimpse-launch.mjs $(URL)
 
 lint:
 	uv run python -m mypy .
