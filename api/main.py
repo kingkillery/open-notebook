@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
@@ -146,12 +147,47 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Podcast profile migration encountered errors: {e}")
         # Non-fatal: profiles can be migrated manually via UI
 
+    # Start the command (job) history cleanup loop so the surreal-commands
+    # `command` table doesn't grow without bound.
+    cleanup_task = None
+    try:
+        from open_notebook.config import (
+            COMMAND_HISTORY_CLEANUP_ENABLED,
+            COMMAND_HISTORY_CLEANUP_INTERVAL_HOURS,
+            COMMAND_HISTORY_RETENTION_DAYS,
+        )
+
+        if COMMAND_HISTORY_CLEANUP_ENABLED:
+            from open_notebook.database.command_cleanup import (
+                run_command_history_cleanup_loop,
+            )
+
+            cleanup_task = asyncio.create_task(
+                run_command_history_cleanup_loop(
+                    COMMAND_HISTORY_RETENTION_DAYS,
+                    COMMAND_HISTORY_CLEANUP_INTERVAL_HOURS,
+                )
+            )
+            logger.info(
+                "Command history cleanup enabled "
+                f"(retention={COMMAND_HISTORY_RETENTION_DAYS}d, "
+                f"every {COMMAND_HISTORY_CLEANUP_INTERVAL_HOURS}h)"
+            )
+    except Exception as e:
+        logger.warning(f"Could not start command history cleanup: {e}")
+
     logger.success("API initialization completed successfully")
 
     # Yield control to the application
     yield
 
-    # Shutdown: cleanup if needed
+    # Shutdown: stop the cleanup loop
+    if cleanup_task is not None:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except (asyncio.CancelledError, Exception):
+            pass
     logger.info("API shutdown complete")
 
 

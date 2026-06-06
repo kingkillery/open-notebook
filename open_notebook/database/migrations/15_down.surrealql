@@ -1,0 +1,5 @@
+-- Migration 15 rollback: drop the command timestamp field definitions.
+-- Existing data is left untouched; only the schema DEFAULT is removed.
+
+REMOVE FIELD IF EXISTS created ON TABLE command;
+REMOVE FIELD IF EXISTS updated ON TABLE command;

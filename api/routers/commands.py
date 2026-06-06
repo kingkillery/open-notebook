@@ -119,6 +119,38 @@ async def cancel_command_job(job_id: str):
         )
 
 
+class CommandCleanupResponse(BaseModel):
+    deleted: int = Field(..., description="Number of finished job records removed")
+    retention_days: int = Field(..., description="Age threshold used")
+    dry_run: bool = Field(..., description="Whether this was a dry run")
+
+
+@router.post("/commands/cleanup", response_model=CommandCleanupResponse)
+async def cleanup_command_history_endpoint(
+    retention_days: Optional[int] = Query(
+        None, description="Override retention window in days (default from config)"
+    ),
+    dry_run: bool = Query(False, description="Count without deleting"),
+):
+    """Manually prune old finished job records from the command history table."""
+    try:
+        from open_notebook.config import COMMAND_HISTORY_RETENTION_DAYS
+        from open_notebook.database.command_cleanup import cleanup_command_history
+
+        days = (
+            retention_days
+            if retention_days is not None
+            else COMMAND_HISTORY_RETENTION_DAYS
+        )
+        deleted = await cleanup_command_history(days, dry_run=dry_run)
+        return CommandCleanupResponse(
+            deleted=deleted, retention_days=days, dry_run=dry_run
+        )
+    except Exception as e:
+        logger.error(f"Error cleaning command history: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to clean command history")
+
+
 @router.get("/commands/registry/debug")
 async def debug_registry():
     """Debug endpoint to see what commands are registered"""

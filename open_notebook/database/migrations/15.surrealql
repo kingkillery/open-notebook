@@ -1,0 +1,17 @@
+-- Migration 15: Make the command (job history) table prunable by age
+--
+-- surreal-commands inserts `command` rows via a raw CREATE without any
+-- timestamp, so the job-history table grows without bound and cannot be
+-- cleaned up by age. A DEFAULT clause makes SurrealDB stamp `created`
+-- (and `updated`) on every NEW command record, at the database level,
+-- regardless of what the library sends.
+--
+-- DEFAULT (not VALUE) is used so the stamp is written once on create and
+-- preserved across the status UPDATEs surreal-commands performs as a job
+-- moves new -> running -> completed/failed.
+--
+-- Legacy rows created before this migration keep a NULL `created` and are
+-- deliberately ignored by the age-based cleanup (see command_cleanup.py).
+
+DEFINE FIELD IF NOT EXISTS created ON TABLE command TYPE option<datetime> DEFAULT time::now();
+DEFINE FIELD IF NOT EXISTS updated ON TABLE command TYPE option<datetime> DEFAULT time::now();
