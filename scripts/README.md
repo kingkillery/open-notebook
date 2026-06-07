@@ -1,5 +1,43 @@
 # Scripts Documentation
 
+## colab_compute.py
+
+Host-side client for the Colab tunnel at `https://colab.pkking.computer`.
+
+It reads the session bearer token from Google Drive programmatically via
+`gcloud` + Drive API first, then falls back to the local Drive Desktop sync file:
+
+```text
+C:\Users\prest\Google Drive\colab-compute-token.txt
+```
+
+Defaults:
+
+- Drive account: `knackos11@gmail.com`
+- Drive file name: `colab-compute-token.txt`
+
+The token is not printed. Override discovery with `COLAB_COMPUTE_TOKEN`,
+`COLAB_COMPUTE_DRIVE_ACCOUNT`, `COLAB_COMPUTE_DRIVE_FILE_NAME`, or
+`COLAB_COMPUTE_TOKEN_FILE`.
+
+If `drive-token` reports insufficient Drive scope, run this once:
+
+```powershell
+gcloud auth login knackos11@gmail.com --enable-gdrive-access --no-activate
+```
+
+### Usage
+
+```powershell
+python scripts/colab_compute.py drive-token
+python scripts/colab_compute.py status
+python scripts/colab_compute.py models
+python scripts/colab_compute.py chat "Reply with exactly: ready"
+
+# Windows wrapper
+.\scripts\colab-compute.ps1 status
+```
+
 ## export_docs.py
 
 Consolidates markdown documentation files for use with ChatGPT or other platforms with file upload limits.

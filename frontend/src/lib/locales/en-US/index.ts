@@ -854,6 +854,10 @@ export const enUS = {
     overrideModelDesc: "Override the default model for this chat session. Leave empty to use the system default.",
     sessionUseReplacement: "This session will use {name} instead of the default model.",
     systemDefault: "System Default",
+    notebookOptions: "Notebook transformations",
+    notebookOptionsDesc: "Run a transformation on the selected notebook context and save the output as a note.",
+    runTransformation: "Run transformation",
+    notebookRunSuccess: "Transformation saved as a note",
   },
   models: {
     embedding: "Embedding Models",

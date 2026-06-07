@@ -1,6 +1,6 @@
 .PHONY: run frontend glimpse check ruff database lint api start-all stop-all status clean-cache worker worker-start worker-stop worker-restart
 .PHONY: docker-buildx-prepare docker-buildx-clean docker-buildx-reset
-.PHONY: docker-push docker-push-latest docker-release docker-build-local tag export-docs
+.PHONY: docker-push docker-push-latest docker-release docker-build-local tag export-docs colab-status
 
 # Get version from pyproject.toml
 VERSION := $(shell grep -m1 version pyproject.toml | cut -d'"' -f2)
@@ -202,6 +202,10 @@ export-docs:
 	@echo "📚 Exporting documentation..."
 	@uv run python scripts/export_docs.py
 	@echo "✅ Documentation export complete!"
+
+# === Colab Compute ===
+colab-status:
+	@uv run python scripts/colab_compute.py status
 
 # === Cleanup ===
 clean-cache:

@@ -1,14 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { transformationsApi } from '@/lib/api/transformations'
+import { QUERY_KEYS } from '@/lib/api/query-client'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { getApiErrorMessage } from '@/lib/utils/error-handler'
 import {
   CreateTransformationRequest,
   UpdateTransformationRequest,
-  ExecuteTransformationRequest
+  ExecuteTransformationRequest,
+  NotebookTransformationExecuteRequest
 } from '@/lib/types/transformations'
-
 // Add to QUERY_KEYS in query-client.ts
 export const TRANSFORMATION_QUERY_KEYS = {
   transformations: ['transformations'] as const,
@@ -112,6 +113,36 @@ export function useExecuteTransformation() {
 
   return useMutation({
     mutationFn: (data: ExecuteTransformationRequest) => transformationsApi.execute(data),
+    onError: (error: unknown) => {
+      toast({
+        title: t('common.error'),
+        description: getApiErrorMessage(error, (key) => t(key)),
+        variant: 'destructive',
+      })
+    },
+  })
+}
+
+export function useExecuteNotebookTransformation(notebookId: string) {
+  const queryClient = useQueryClient()
+  const { toast } = useToast()
+  const { t } = useTranslation()
+
+  return useMutation({
+    mutationFn: ({
+      transformationId,
+      data,
+    }: {
+      transformationId: string
+      data: NotebookTransformationExecuteRequest
+    }) => transformationsApi.executeForNotebook(notebookId, transformationId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notes(notebookId) })
+      toast({
+        title: t('common.success'),
+        description: t('transformations.notebookRunSuccess'),
+      })
+    },
     onError: (error: unknown) => {
       toast({
         title: t('common.error'),

@@ -28,6 +28,7 @@ class NotebookResponse(BaseModel):
     note_count: int
 
 
+
 # Search models
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")
@@ -158,6 +159,8 @@ class TransformationExecuteResponse(BaseModel):
 
 
 # Default Prompt API models
+
+
 class DefaultPromptResponse(BaseModel):
     transformation_instructions: str = Field(
         ..., description="Default transformation instructions"
@@ -389,6 +392,29 @@ class ContextResponse(BaseModel):
     notes: List[Dict[str, Any]] = Field(..., description="Note context data")
     total_tokens: Optional[int] = Field(None, description="Estimated token count")
 
+
+
+class NotebookTransformationExecuteRequest(BaseModel):
+    context_config: Optional[ContextConfig] = Field(
+        None,
+        description="Optional notebook context selection. Defaults to all sources and notes.",
+    )
+    save_as_note: bool = Field(
+        True,
+        description="Whether to save the transformation output as an AI note.",
+    )
+    note_title: Optional[str] = Field(
+        None,
+        description="Optional title for the saved note.",
+    )
+
+
+class NotebookTransformationExecuteResponse(BaseModel):
+    output: str
+    transformation_id: str
+    model_id: str
+    notebook_id: str
+    note: Optional[NoteResponse] = None
 
 # Insights API models
 class SourceInsightResponse(BaseModel):

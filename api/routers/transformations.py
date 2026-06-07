@@ -4,15 +4,21 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 
 from api.models import (
+    ContextRequest,
     DefaultPromptResponse,
     DefaultPromptUpdate,
+    NotebookTransformationExecuteRequest,
+    NotebookTransformationExecuteResponse,
+    NoteResponse,
     TransformationCreate,
     TransformationExecuteRequest,
     TransformationExecuteResponse,
     TransformationResponse,
     TransformationUpdate,
 )
-from open_notebook.ai.models import Model
+from api.routers.context import get_notebook_context
+from open_notebook.ai.models import Model, ModelManager
+from open_notebook.domain.notebook import Note, Notebook
 from open_notebook.domain.transformation import DefaultPrompts, Transformation
 from open_notebook.exceptions import InvalidInputError, OpenNotebookError
 from open_notebook.graphs.transformation import graph as transformation_graph
@@ -115,6 +121,126 @@ async def execute_transformation(execute_request: TransformationExecuteRequest):
         logger.error(f"Error executing transformation: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Error executing transformation: {str(e)}"
+        )
+
+
+def _context_to_markdown(context_data: dict) -> str:
+    sections: list[str] = []
+    sources = context_data.get("sources") or []
+    notes = context_data.get("notes") or []
+
+    if sources:
+        source_lines = ["# Sources"]
+        for index, source in enumerate(sources, start=1):
+            source_lines.append(f"## Source {index}")
+            source_lines.append(str(source))
+        sections.append("\n\n".join(source_lines))
+
+    if notes:
+        note_lines = ["# Notes"]
+        for index, note in enumerate(notes, start=1):
+            note_lines.append(f"## Note {index}")
+            note_lines.append(str(note))
+        sections.append("\n\n".join(note_lines))
+
+    return "\n\n".join(sections).strip()
+
+
+@router.post(
+    "/notebooks/{notebook_id}/transformations/{transformation_id}/execute",
+    response_model=NotebookTransformationExecuteResponse,
+)
+async def execute_notebook_transformation(
+    notebook_id: str,
+    transformation_id: str,
+    execute_request: NotebookTransformationExecuteRequest,
+):
+    """Execute a transformation against notebook context and optionally save it as a note."""
+    try:
+        notebook = await Notebook.get(notebook_id)
+        if not notebook:
+            raise HTTPException(status_code=404, detail="Notebook not found")
+
+        transformation = await Transformation.get(transformation_id)
+        if not transformation:
+            raise HTTPException(status_code=404, detail="Transformation not found")
+
+        model_manager = ModelManager()
+        defaults = await model_manager.get_defaults()
+        model_id = defaults.default_transformation_model or defaults.default_chat_model
+        if not model_id:
+            raise HTTPException(
+                status_code=422,
+                detail="No default transformation or chat model is configured.",
+            )
+
+        model = await Model.get(model_id)
+        if not model:
+            raise HTTPException(status_code=404, detail="Default transformation model not found")
+
+        context_response = await get_notebook_context(
+            notebook_id,
+            ContextRequest(
+                notebook_id=notebook_id,
+                context_config=execute_request.context_config,
+            ),
+        )
+        input_text = _context_to_markdown(
+            {
+                "sources": context_response.sources,
+                "notes": context_response.notes,
+            }
+        )
+        if not input_text:
+            raise HTTPException(
+                status_code=400,
+                detail="Notebook context is empty. Select at least one source or note.",
+            )
+
+        result = await transformation_graph.ainvoke(
+            dict(  # type: ignore[arg-type]
+                input_text=input_text,
+                transformation=transformation,
+            ),
+            config=dict(configurable={"model_id": model_id}),
+        )
+
+        note_response = None
+        if execute_request.save_as_note:
+            note = Note(
+                title=execute_request.note_title or transformation.title,
+                content=result["output"],
+                note_type="ai",
+            )
+            command_id = await note.save()
+            await note.add_to_notebook(notebook_id)
+            note_response = NoteResponse(
+                id=note.id or "",
+                title=note.title,
+                content=note.content,
+                note_type=note.note_type,
+                created=str(note.created),
+                updated=str(note.updated),
+                command_id=str(command_id) if command_id else None,
+            )
+
+        return NotebookTransformationExecuteResponse(
+            output=result["output"],
+            transformation_id=transformation_id,
+            model_id=model_id,
+            notebook_id=notebook_id,
+            note=note_response,
+        )
+
+    except HTTPException:
+        raise
+    except OpenNotebookError:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing notebook transformation: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error executing notebook transformation: {str(e)}",
         )
 
 

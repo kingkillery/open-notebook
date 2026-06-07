@@ -5,6 +5,8 @@ import {
   UpdateTransformationRequest,
   ExecuteTransformationRequest,
   ExecuteTransformationResponse,
+  NotebookTransformationExecuteRequest,
+  NotebookTransformationExecuteResponse,
   DefaultPrompt
 } from '@/lib/types/transformations'
 
@@ -35,6 +37,18 @@ export const transformationsApi = {
 
   execute: async (data: ExecuteTransformationRequest) => {
     const response = await apiClient.post<ExecuteTransformationResponse>('/transformations/execute', data)
+    return response.data
+  },
+
+  executeForNotebook: async (
+    notebookId: string,
+    transformationId: string,
+    data: NotebookTransformationExecuteRequest
+  ) => {
+    const response = await apiClient.post<NotebookTransformationExecuteResponse>(
+      `/notebooks/${encodeURIComponent(notebookId)}/transformations/${encodeURIComponent(transformationId)}/execute`,
+      data
+    )
     return response.data
   },
 

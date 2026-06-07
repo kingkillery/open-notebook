@@ -37,6 +37,31 @@ export interface ExecuteTransformationResponse {
   model_id: string
 }
 
+export interface NotebookTransformationExecuteRequest {
+  context_config?: {
+    sources?: Record<string, string>
+    notes?: Record<string, string>
+  }
+  save_as_note?: boolean
+  note_title?: string
+}
+
+export interface NotebookTransformationExecuteResponse {
+  output: string
+  transformation_id: string
+  model_id: string
+  notebook_id: string
+  note?: {
+    id: string
+    title: string | null
+    content: string | null
+    note_type: string | null
+    created: string
+    updated: string
+    command_id?: string | null
+  } | null
+}
+
 export interface DefaultPrompt {
   transformation_instructions: string
 }
